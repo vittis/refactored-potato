@@ -1,0 +1,8 @@
+{
+    "watch": [
+        "src-new"
+    ],
+    "ext": ".ts,.js,.json",
+    "ignore": [],
+    "exec": "ts-node ./src-new/index.ts"
+}

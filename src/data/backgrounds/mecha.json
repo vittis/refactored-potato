@@ -1,0 +1,8 @@
+{
+  "name": "Mecha",
+  "str": 5,
+  "dex": 0,
+  "hp": 300,
+  "quickness": 0,
+  "price": 500
+}
