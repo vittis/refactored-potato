@@ -1,14 +1,17 @@
 import { BoardManager, POSITION } from "./BoardManager";
 import { Unit } from "./Unit";
 
+import Races from "./data/races";
+import Classes from "./data/classes";
+
 export class Game {
     boardManager: BoardManager;
 
     constructor() {
         this.boardManager = new BoardManager();
 
-        this.boardManager.addToBoard(new Unit(true), POSITION.FRONT_DOWN, "P1");
-        this.boardManager.addToBoard(new Unit(false), POSITION.BACK_DOWN, "P1");
+        this.boardManager.addToBoard(new Unit(Races.Human, Classes.Knight), POSITION.FRONT_DOWN, "P1");
+        this.boardManager.addToBoard(new Unit(Races.Human, Classes.Knight), POSITION.BACK_DOWN, "P1");
 
         /* this.boardManager.addToBoard(new Unit(), POSITION.FRONT_DOWN, "P2");
         this.boardManager.addToBoard(new Unit(), POSITION.FRONT_UP, "P2"); */
@@ -34,3 +37,13 @@ export class Game {
         console.log(`this wigga attacked ${unit2.TEST_attacksCounter} times`);
     }
 }
+
+/* 
+RAÇA
+CLASSE
+EQUIP
+COMBATE
+
+ATTACK SPEED:
+(BASE + B) * (1 + (DEX * 5) / 100)
+ */
