@@ -1,6 +1,5 @@
 {
   "name": "Human",
-  "hp": 200,
   "str": 5,
   "dex": 5,
   "int": 5

@@ -1,6 +1,12 @@
 {
   "name": "Knight",
+  "hp": 200,
   "str": 8,
   "dex": 5,
-  "int": 2
+  "int": 2,
+  "tier": 3,
+  "statsBonus": {
+    "armor": 100
+  },
+  "defaultWeapon": "Rusty Greatsword"
 }

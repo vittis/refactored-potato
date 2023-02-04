@@ -1,3 +1,5 @@
+import { Multipliers } from "./data/config";
+
 export interface UnitStats {
     str: number;
     dex: number;
@@ -17,7 +19,6 @@ export interface UnitStats {
 
 export interface RaceData {
     name: string;
-    hp: number;
     str: number;
     dex: number;
     int: number;
@@ -25,9 +26,12 @@ export interface RaceData {
 
 export interface ClassData {
     name: string;
+    hp: number;
     str: number;
     dex: number;
     int: number;
+    tier: number;
+    statsBonus?: { armor?: number };
 }
 
 interface UnitData {
@@ -45,19 +49,28 @@ export class Unit {
     constructor(race: RaceData, uClass: ClassData) {
         this.race = race;
         this.class = uClass;
+
+        const finalStr = race.str + uClass.str;
+        const finalDex = race.dex + uClass.dex;
+        const finalInt = race.int + uClass.int;
+
+        const finalHp = uClass.hp + finalStr * Multipliers.hpStrMult;
+        const finalArmor = uClass.statsBonus?.armor || 0;
+        const finalAttackSpeed = 30 * (1 + (finalDex * Multipliers.asDexMult) / 100);
+
         this.stats = {
-            str: 5,
-            dex: 5,
-            int: 5,
-            hp: 500,
-            maxHp: 500,
-            armor: 0,
-            maxArmor: 0,
-            attackSpeed: 77,
+            str: finalStr,
+            dex: finalDex,
+            int: finalInt,
+            hp: finalHp,
+            maxHp: finalHp,
+            armor: finalArmor,
+            maxArmor: finalArmor,
+            attackSpeed: finalAttackSpeed,
             ap: 0,
-            skillRegen: 20,
+            skillRegen: 0,
             sp: 0,
-            attackDamage: 10,
+            attackDamage: 40,
             weight: 10,
             level: 1
         };
