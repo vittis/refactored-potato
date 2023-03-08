@@ -38,6 +38,14 @@ export class BoardManager {
         }
     }
 
+    getUnit(owner: OWNER, position: POSITION): Unit {
+        if (owner === "P1") {
+            return this.squad1.find((tile) => tile.position === position)?.unit || (".." as unknown as Unit);
+        } else {
+            return this.squad2.find((tile) => tile.position === position)?.unit || (".." as unknown as Unit);
+        }
+    }
+
     printBoard() {
         process.stdout.write(
             `${this.getUnit("P1", POSITION.BACK_UP)}           ${this.getUnit("P2", POSITION.BACK_UP)}`
@@ -60,14 +68,6 @@ export class BoardManager {
         );
         process.stdout.write(`\n`);
         console.log("----------------------------------------");
-    }
-
-    getUnit(owner: OWNER, position: POSITION): Unit {
-        if (owner === "P1") {
-            return this.squad1.find((tile) => tile.position === position)?.unit || (".." as unknown as Unit);
-        } else {
-            return this.squad2.find((tile) => tile.position === position)?.unit || (".." as unknown as Unit);
-        }
     }
 }
 

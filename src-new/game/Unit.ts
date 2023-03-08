@@ -1,4 +1,5 @@
 import { Multipliers } from "./data/config";
+import { WeaponData } from "./Weapon";
 
 export interface UnitStats {
     str: number;
@@ -39,16 +40,22 @@ interface UnitData {
     class: ClassData;
 }
 
+export interface Equipment {
+    mainHandWeapon: WeaponData;
+}
+
 export class Unit {
     stats: UnitStats;
     race: RaceData;
     class: ClassData;
+    equipment: Equipment;
 
     TEST_attacksCounter = 0;
 
-    constructor(race: RaceData, uClass: ClassData) {
+    constructor(race: RaceData, uClass: ClassData, equipment: Equipment) {
         this.race = race;
         this.class = uClass;
+        this.equipment = equipment;
 
         const finalStr = race.str + uClass.str;
         const finalDex = race.dex + uClass.dex;
@@ -56,7 +63,15 @@ export class Unit {
 
         const finalHp = uClass.hp + finalStr * Multipliers.hpStrMult;
         const finalArmor = uClass.statsBonus?.armor || 0;
-        const finalAttackSpeed = 30 * (1 + (finalDex * Multipliers.asDexMult) / 100);
+        const finalAttackSpeed =
+            this.equipment.mainHandWeapon.attackSpeed * (1 + (finalDex * Multipliers.asDexMult) / 100);
+        const finalAttackDamage =
+            this.equipment.mainHandWeapon.damage *
+            (1 +
+                (finalStr * this.equipment.mainHandWeapon.strScale +
+                    finalDex * this.equipment.mainHandWeapon.dexScale +
+                    finalInt * this.equipment.mainHandWeapon.intScale) /
+                    100);
 
         this.stats = {
             str: finalStr,
@@ -70,7 +85,7 @@ export class Unit {
             ap: 0,
             skillRegen: 0,
             sp: 0,
-            attackDamage: 40,
+            attackDamage: finalAttackDamage,
             weight: 10,
             level: 1
         };
@@ -88,11 +103,16 @@ export class Unit {
         return this.stats.ap >= 1000;
     }
 
+    getName() {
+        return `${this.race.name} ${this.class.name}`;
+    }
+
     public toString = (): string => {
         return `${this.race.name.substring(0, 1)}${this.class.name.substring(0, 1)}`;
     };
 
     printAp() {
+        console.log(this.stats.ap);
         let bar = "|";
         for (let i = 0; i < 20; i++) {
             if (i / 20 <= this.stats.ap / 1000) bar += "-";

@@ -1,5 +1,6 @@
 {
   "name": "Human",
+  "hpMultiplier": 1,
   "str": 5,
   "dex": 5,
   "int": 5
