@@ -1,44 +1,81 @@
 import { Unit } from "./Unit";
 
 export enum POSITION {
-    FRONT_UP = 0,
-    FRONT_DOWN = 1,
-    BACK_UP = 2,
-    BACK_MID = 3,
-    BACK_DOWN = 4
+    TOP_FRONT = 0,
+    TOP_MID = 1,
+    TOP_BACK = 2,
+    BOT_FRONT = 3,
+    BOT_MID = 4,
+    BOT_BACK = 5
 }
 
-interface Tile {
-    unit: Unit;
-    position: POSITION;
+export enum OWNER {
+    TEAM_ONE = 0,
+    TEAM_TWO = 1
 }
 
-type OWNER = "P1" | "P2";
+type Board = [
+    [Unit | undefined, Unit | undefined, Unit | undefined, Unit | undefined, Unit | undefined, Unit | undefined],
+    [Unit | undefined, Unit | undefined, Unit | undefined, Unit | undefined, Unit | undefined, Unit | undefined]
+];
 
 export class BoardManager {
-    private squad1: Tile[];
-    private squad2: Tile[];
+    private board: Board;
 
     constructor() {
-        this.squad1 = [];
-        this.squad2 = [];
+        this.board = [
+            [undefined, undefined, undefined, undefined, undefined, undefined],
+            [undefined, undefined, undefined, undefined, undefined, undefined]
+        ];
     }
 
-    addToBoard(unit: Unit, position: POSITION, owner: OWNER) {
-        if (owner === "P1") {
-            if (this.squad1.find((tile) => tile.position === position)) {
-                throw Error(`Ja tem cara ai ${position}`);
-            }
-            this.squad1.push({ unit, position });
-        } else {
-            if (this.squad2.find((tile) => tile.position === position)) {
-                throw Error(`Ja tem cara ai ${position}`);
-            }
-            this.squad2.push({ unit, position });
+    addToBoard(unit: Unit) {
+        const position = unit.position;
+        const owner = unit.owner;
+
+        if (this.board[owner][position]) {
+            throw Error(`Ja tem cara ai ${owner} ${position}`);
         }
+        this.board[owner][position] = unit;
     }
 
-    printBoard() {
+    getUnit(owner: OWNER, position: POSITION): Unit {
+        if (!this.board[owner][position]) {
+            throw Error(`Tried to getUnit ${owner} ${position} that doesnt exist`);
+        }
+
+        return this.board[owner][position] as Unit;
+    }
+
+    getAllUnits(): Unit[] {
+        return this.board[0].concat(this.board[1]).filter((tile) => !!tile) as Unit[];
+    }
+
+    getAllUnitsOfOwner(owner: OWNER): Unit[] {
+        return this.board[owner].filter((tile) => !!tile) as Unit[];
+    }
+
+    getAttackTargetFor(unit: Unit): Unit {
+        const otherBoard = this.board[unit.owner === 1 ? 0 : 1];
+
+        const isTop = unit.position === 0 || unit.position === 1 || unit.position === 2;
+        let target;
+        if (isTop) {
+            target = otherBoard[0] || otherBoard[3] || otherBoard[1] || otherBoard[4] || otherBoard[2] || otherBoard[5];
+            return target as Unit;
+        } else {
+            target = otherBoard[3] || otherBoard[0] || otherBoard[4] || otherBoard[1] || otherBoard[5] || otherBoard[2];
+        }
+
+        return target as Unit;
+    }
+
+    // todo update
+    /* printBoard() {
+        const firstLine = "";
+
+        
+
         process.stdout.write(
             `${this.getUnit("P1", POSITION.BACK_UP)}           ${this.getUnit("P2", POSITION.BACK_UP)}`
         );
@@ -60,16 +97,13 @@ export class BoardManager {
         );
         process.stdout.write(`\n`);
         console.log("----------------------------------------");
-    }
-
-    getUnit(owner: OWNER, position: POSITION): Unit {
-        if (owner === "P1") {
-            return this.squad1.find((tile) => tile.position === position)?.unit || (".." as unknown as Unit);
-        } else {
-            return this.squad2.find((tile) => tile.position === position)?.unit || (".." as unknown as Unit);
-        }
-    }
+    } */
 }
+
+/* 
+    2 1 0   0 1 2
+    5 4 3   3 4 5
+*/
 
 /* 
 U       U

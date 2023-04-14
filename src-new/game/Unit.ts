@@ -1,63 +1,138 @@
+import { ArmorData } from "./Armor";
+import { BoardManager, OWNER, POSITION } from "./BoardManager";
+import { Multipliers } from "./data/config";
+import { WeaponData } from "./Weapon";
+
 export interface UnitStats {
     str: number;
     dex: number;
     int: number;
     hp: number;
     maxHp: number;
-    armor: number;
-    maxArmor: number;
+    armorHp: number;
+    maxArmorHp: number;
+    def: number;
     attackSpeed: number;
     ap: number;
+    skillRegen: number;
     sp: number;
-    mainHandDamage: {
-        min: number;
-        max: number;
-    };
+    attackDamage: number;
     weight: number;
+    level: number;
+}
+
+export interface RaceData {
+    name: string;
+    hpMultiplier: number;
+    str: number;
+    dex: number;
+    int: number;
+}
+
+export interface ClassData {
+    name: string;
+    hp: number;
+    str: number;
+    dex: number;
+    int: number;
+    tier: number;
+    statsBonus?: { armor?: number };
+}
+
+interface UnitData {
+    race: RaceData;
+    class: ClassData;
+}
+
+export interface Equipment {
+    mainHandWeapon: WeaponData;
+    chest: ArmorData;
+    head: ArmorData;
 }
 
 export class Unit {
     stats: UnitStats;
+    race: RaceData;
+    class: ClassData;
+    equipment: Equipment;
+    owner: OWNER;
+    position: POSITION;
+    bm: BoardManager;
+
     TEST_attacksCounter = 0;
 
-    constructor(slow: boolean) {
-        if (slow) {
-            this.stats = {
-                str: 5,
-                dex: 5,
-                int: 5,
-                hp: 500,
-                maxHp: 500,
-                armor: 0,
-                maxArmor: 0,
-                attackSpeed: 77,
-                ap: 0,
-                sp: 0,
-                mainHandDamage: {
-                    max: 10,
-                    min: 10
+    constructor(
+        bm: BoardManager,
+        owner: OWNER,
+        position: POSITION,
+        race: RaceData,
+        uClass: ClassData,
+        equipment: Equipment
+    ) {
+        this.bm = bm;
+        this.owner = owner;
+        this.position = position;
+
+        this.race = race;
+        this.class = uClass;
+        this.equipment = equipment;
+
+        const finalStr = race.str + uClass.str;
+        const finalDex = race.dex + uClass.dex;
+        const finalInt = race.int + uClass.int;
+
+        const finalHp = uClass.hp * race.hpMultiplier;
+
+        const finalArmor = (equipment.chest.implicits?.armor || 0) + (equipment.head.implicits?.armor || 0);
+
+        const finalDef = finalStr * Multipliers.defStrBonus;
+
+        const finalAttackSpeed =
+            this.equipment.mainHandWeapon.attackSpeed * (1 + (finalDex * Multipliers.asDexMult) / 100);
+
+        const finalAttackDamage = Math.round(
+            this.equipment.mainHandWeapon.damage *
+                (1 +
+                    (finalStr * this.equipment.mainHandWeapon.strScale +
+                        finalDex * this.equipment.mainHandWeapon.dexScale +
+                        finalInt * this.equipment.mainHandWeapon.intScale) /
+                        100)
+        );
+
+        this.stats = {
+            str: finalStr,
+            dex: finalDex,
+            int: finalInt,
+            hp: finalHp,
+            maxHp: finalHp,
+            armorHp: finalArmor,
+            maxArmorHp: finalArmor,
+            def: finalDef,
+            attackSpeed: finalAttackSpeed,
+            ap: 0,
+            skillRegen: 0,
+            sp: 0,
+            attackDamage: finalAttackDamage,
+            weight: 10,
+            level: 1
+        };
+    }
+
+    serialize() {
+        return {
+            owner: this.owner,
+            equipment: {
+                mainHandWeapon: {
+                    ...this.equipment.mainHandWeapon
                 },
-                weight: 10
-            };
-        } else {
-            this.stats = {
-                str: 5,
-                dex: 15,
-                int: 5,
-                hp: 500,
-                maxHp: 500,
-                armor: 0,
-                maxArmor: 0,
-                attackSpeed: 122.5,
-                ap: 0,
-                sp: 0,
-                mainHandDamage: {
-                    max: 10,
-                    min: 10
-                },
-                weight: 10
-            };
-        }
+                chest: { ...this.equipment.chest },
+                head: { ...this.equipment.head }
+            },
+            stats: {
+                ...this.stats
+            },
+            position: this.position
+        };
     }
 
     step() {
@@ -65,6 +140,32 @@ export class Unit {
         if (this.canAttack()) {
             this.stats.ap -= 1000;
             this.TEST_attacksCounter++;
+
+            const attackTarget = this.bm.getAttackTargetFor(this);
+            if (!attackTarget) {
+                throw Error("Undefined attack target for " + this.toString());
+            }
+
+            this.attackWithMainHand(attackTarget);
+        }
+    }
+
+    attackWithMainHand(target: Unit) {
+        target.receiveDamage(this.stats.attackDamage);
+    }
+
+    receiveDamage(damage: number) {
+        const finalDamage = Math.round((damage * 100) / (this.stats.def + 100));
+
+        if (this.stats.armorHp > 0) {
+            this.stats.armorHp -= finalDamage;
+            if (this.stats.armorHp < 0) {
+                // If the armor is now depleted, apply any remaining damage to the unit's HP
+                this.stats.hp += this.stats.armorHp;
+                this.stats.armorHp = 0;
+            }
+        } else {
+            this.stats.hp -= Math.round(finalDamage);
         }
     }
 
@@ -72,11 +173,16 @@ export class Unit {
         return this.stats.ap >= 1000;
     }
 
+    getName() {
+        return `${this.race.name} ${this.class.name}`;
+    }
+
     public toString = (): string => {
-        return "EK";
+        return `${this.race.name.substring(0, 1)}${this.class.name.substring(0, 1)}`;
     };
 
     printAp() {
+        console.log(this.stats.ap);
         let bar = "|";
         for (let i = 0; i < 20; i++) {
             if (i / 20 <= this.stats.ap / 1000) bar += "-";
@@ -86,91 +192,3 @@ export class Unit {
         console.log(bar);
     }
 }
-
-/* 
-0
-10
-20
-30
-40
-50
-1000
- */
-
-/* 
-0
-12
-24
-36
-48
-60
-1000
- */
-
-/* 
-
-
-
-
-(BASE + B) * (1 + (DEX * 5) / 100)
-
-
-Dex: 15
-BASE ATTACK SPEED (arma): 50 
-B: 0
-
-(50 + 0) * (1 + (15 * 5) / 100) = 87.5
-
----
-
-Dex: 15
-BASE ATTACK SPEED (arma): 70
-B: 0
-
-(70 + 0) * (1 + (15 * 5) / 100) = 122.5
-
----
-
-Dex: 15
-BASE ATTACK SPEED (arma): 30
-B: 0
-
-(30 + 0) * (1 + (15 * 5) / 100) = 52.5
-
----
-
-Dex: 3
-BASE ATTACK SPEED (arma): 30
-B: 0
-
-(30 + 0) * (1 + (3 * 5) / 100) = 34.5
-
----
-
-Dex: 4
-BASE ATTACK SPEED (arma): 30
-B: 0
-
-(30 + 0) * (1 + (4 * 5) / 100) = 36
-
----
-
-Dex: 4
-BASE ATTACK SPEED (arma): 30
-B: 10
-
-(30 + 10) * (1 + (4 * 5) / 100) = 48
-
-
------
-
-
-
-
-
-
-1000
-
-
-
-*/
