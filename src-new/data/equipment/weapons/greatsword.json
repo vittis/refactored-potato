@@ -2,7 +2,7 @@
     "name": "Greatsword",
     "damage": 50,
     "weight": 4,
-    "attackSpeed": 20,
+    "attackSpeed": 15,
     "slot": [
         "TWO_HANDED"
     ],

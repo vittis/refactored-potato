@@ -1,52 +1,69 @@
-import { BoardManager, POSITION } from "./BoardManager";
+import { BoardManager, OWNER, POSITION } from "./BoardManager";
 import { Unit } from "./Unit";
 
 import Races from "./data/races";
 import Classes from "./data/classes";
 import Weapons from "./data/weapons";
+import Chests from "./data/chests";
+import Heads from "./data/heads";
+
 import { WeaponData } from "./Weapon";
+import { ArmorData } from "./Armor";
 
 export class Game {
     boardManager: BoardManager;
+    history: any[] = [];
 
     constructor() {
         this.boardManager = new BoardManager();
 
         this.boardManager.addToBoard(
-            new Unit(Races.Dwarf, Classes.Ranger, { mainHandWeapon: Weapons.Dagger as WeaponData }),
-            POSITION.FRONT_DOWN,
-            "P1"
+            new Unit(this.boardManager, OWNER.TEAM_ONE, POSITION.TOP_BACK, Races.Human, Classes.Ranger, {
+                mainHandWeapon: Weapons.Dagger as WeaponData,
+                chest: Chests.ClothRobe as ArmorData,
+                head: Heads.ClothHat as ArmorData
+            })
         );
         this.boardManager.addToBoard(
-            new Unit(Races.Dwarf, Classes.Knight, { mainHandWeapon: Weapons.Greatsword as WeaponData }),
-            POSITION.BACK_DOWN,
-            "P2"
+            new Unit(this.boardManager, OWNER.TEAM_TWO, POSITION.TOP_FRONT, Races.Dwarf, Classes.Knight, {
+                mainHandWeapon: Weapons.Greatsword as WeaponData,
+                chest: Chests.PlateMail as ArmorData,
+                head: Heads.PlateHelment as ArmorData
+            })
         );
 
-        /* this.boardManager.addToBoard(new Unit(), POSITION.FRONT_DOWN, "P2");
-        this.boardManager.addToBoard(new Unit(), POSITION.FRONT_UP, "P2"); */
-
-        this.boardManager.printBoard();
+        // this.boardManager.printBoard();
     }
 
     async startGame() {
         console.log("start game");
-        const unit1 = this.boardManager.getUnit("P1", POSITION.FRONT_DOWN);
-        const unit2 = this.boardManager.getUnit("P2", POSITION.BACK_DOWN);
 
-        let timer = 0;
-        while (timer < 150) {
-            timer++;
-            // unit1.printAp();
-            unit1.step();
-            // unit2.printAp();
-            unit2.step();
-        }
+        const unit1 = this.boardManager.getUnit(OWNER.TEAM_ONE, POSITION.TOP_BACK);
+        const unit2 = this.boardManager.getUnit(OWNER.TEAM_TWO, POSITION.TOP_FRONT);
+
+        const serializedUnits = this.boardManager.getAllUnits().map((unit) => unit.serialize());
+        this.history.push({ units: serializedUnits });
+
+        console.time("loop");
+
+        do {
+            this.boardManager.getAllUnits().forEach((unit) => {
+                unit.step();
+
+                const serializedUnits = this.boardManager.getAllUnits().map((unit) => unit.serialize());
+                this.history.push({ units: serializedUnits });
+            });
+
+            /* const serializedUnits = this.boardManager.getAllUnits().map((unit) => unit.serialize());
+            this.history.push({ units: serializedUnits }); */
+        } while (!this.hasGameEnded());
 
         console.table([
             {
                 name: unit1.getName(),
                 hp: unit1.stats.hp + "/" + unit1.stats.maxHp,
+                armorHp: unit1.stats.armorHp + "/" + unit1.stats.maxArmorHp,
+                def: unit1.stats.def,
                 ap: unit1.stats.ap,
                 attackSpeed: unit1.stats.attackSpeed,
                 weapon: unit1.equipment.mainHandWeapon.name,
@@ -59,6 +76,8 @@ export class Game {
             {
                 name: unit2.getName(),
                 hp: unit2.stats.hp + "/" + unit2.stats.maxHp,
+                armorHp: unit2.stats.armorHp + "/" + unit2.stats.maxArmorHp,
+                def: unit2.stats.def,
                 ap: unit2.stats.ap,
                 attackSpeed: unit2.stats.attackSpeed,
                 weapon: unit2.equipment.mainHandWeapon.name,
@@ -69,10 +88,28 @@ export class Game {
                 attacks: unit2.TEST_attacksCounter
             }
         ]);
+        console.timeEnd("loop");
+    }
+
+    hasGameEnded() {
+        return (
+            this.boardManager.getAllUnitsOfOwner(OWNER.TEAM_ONE).every((unit) => unit.stats.hp <= 0) ||
+            this.boardManager.getAllUnitsOfOwner(OWNER.TEAM_TWO).every((unit) => unit.stats.hp <= 0)
+        );
     }
 }
 
 /* 
+Ideia:
+ - Implicit weapons aplicam debuff. Ex: 
+    - bow: apply 1 weak on hit,
+    - greatmace: apply 1 stunned on hit
+    - dagger: start: gain 3 fast
+
+
+  - stunned X: dont add ap for X turns
+
+
 RAÇA
 CLASSE
 EQUIP
@@ -108,20 +145,36 @@ DANO TOTAL:
     T4: + 35
 
 
+    Longsword TBlueprint
+    Sem Mods
+
     Longsword T1:
     DexT1
 
     Longsword T2:
-    DamageT1 + DexT1
+    DamageT2 + DexT1
 
     Longsword T3:
-    DamageT2 + Pen1 + DexT1
+    DamageT3 + PenT1 + DexT1
 
     Longsword T4:
-    DamageT3 + Pen2 + DexT2
+    DamageT4 + Pen2 + DexT1
 
     Longsword T5:
-    DamageT3 + Pen2 + DexT2 + cabuloso
+    DamageT5 + PenT3 + DexT1 ou DamageT5 + PenT4 
 
+
+    Item sempre vai ter um MOD do próprio tier
+    Os outros mods vão ser randomizados e somados tem valor de TierDoItem - 1
+    Cada Mod tem seu peso de raridade
+
+    
+    Weapon blueprint: One handed sword, One handed mace
+    Weapon Example: Katana, Gladius, Great axe
+
+    Na blueprint é definido os possíveis modifiers q podem ser rollados no item.
+
+
+    Batalha baseada em buffs/debuffs tipo super auto battlemon
 
 */

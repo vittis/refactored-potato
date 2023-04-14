@@ -1,3 +1,5 @@
+import { ArmorData } from "./Armor";
+import { BoardManager, OWNER, POSITION } from "./BoardManager";
 import { Multipliers } from "./data/config";
 import { WeaponData } from "./Weapon";
 
@@ -7,8 +9,9 @@ export interface UnitStats {
     int: number;
     hp: number;
     maxHp: number;
-    armor: number;
-    maxArmor: number;
+    armorHp: number;
+    maxArmorHp: number;
+    def: number;
     attackSpeed: number;
     ap: number;
     skillRegen: number;
@@ -20,6 +23,7 @@ export interface UnitStats {
 
 export interface RaceData {
     name: string;
+    hpMultiplier: number;
     str: number;
     dex: number;
     int: number;
@@ -42,6 +46,8 @@ interface UnitData {
 
 export interface Equipment {
     mainHandWeapon: WeaponData;
+    chest: ArmorData;
+    head: ArmorData;
 }
 
 export class Unit {
@@ -49,10 +55,24 @@ export class Unit {
     race: RaceData;
     class: ClassData;
     equipment: Equipment;
+    owner: OWNER;
+    position: POSITION;
+    bm: BoardManager;
 
     TEST_attacksCounter = 0;
 
-    constructor(race: RaceData, uClass: ClassData, equipment: Equipment) {
+    constructor(
+        bm: BoardManager,
+        owner: OWNER,
+        position: POSITION,
+        race: RaceData,
+        uClass: ClassData,
+        equipment: Equipment
+    ) {
+        this.bm = bm;
+        this.owner = owner;
+        this.position = position;
+
         this.race = race;
         this.class = uClass;
         this.equipment = equipment;
@@ -61,17 +81,23 @@ export class Unit {
         const finalDex = race.dex + uClass.dex;
         const finalInt = race.int + uClass.int;
 
-        const finalHp = uClass.hp + finalStr * Multipliers.hpStrMult;
-        const finalArmor = uClass.statsBonus?.armor || 0;
+        const finalHp = uClass.hp * race.hpMultiplier;
+
+        const finalArmor = (equipment.chest.implicits?.armor || 0) + (equipment.head.implicits?.armor || 0);
+
+        const finalDef = finalStr * Multipliers.defStrBonus;
+
         const finalAttackSpeed =
             this.equipment.mainHandWeapon.attackSpeed * (1 + (finalDex * Multipliers.asDexMult) / 100);
-        const finalAttackDamage =
+
+        const finalAttackDamage = Math.round(
             this.equipment.mainHandWeapon.damage *
-            (1 +
-                (finalStr * this.equipment.mainHandWeapon.strScale +
-                    finalDex * this.equipment.mainHandWeapon.dexScale +
-                    finalInt * this.equipment.mainHandWeapon.intScale) /
-                    100);
+                (1 +
+                    (finalStr * this.equipment.mainHandWeapon.strScale +
+                        finalDex * this.equipment.mainHandWeapon.dexScale +
+                        finalInt * this.equipment.mainHandWeapon.intScale) /
+                        100)
+        );
 
         this.stats = {
             str: finalStr,
@@ -79,8 +105,9 @@ export class Unit {
             int: finalInt,
             hp: finalHp,
             maxHp: finalHp,
-            armor: finalArmor,
-            maxArmor: finalArmor,
+            armorHp: finalArmor,
+            maxArmorHp: finalArmor,
+            def: finalDef,
             attackSpeed: finalAttackSpeed,
             ap: 0,
             skillRegen: 0,
@@ -91,11 +118,54 @@ export class Unit {
         };
     }
 
+    serialize() {
+        return {
+            owner: this.owner,
+            equipment: {
+                mainHandWeapon: {
+                    ...this.equipment.mainHandWeapon
+                },
+                chest: { ...this.equipment.chest },
+                head: { ...this.equipment.head }
+            },
+            stats: {
+                ...this.stats
+            },
+            position: this.position
+        };
+    }
+
     step() {
         this.stats.ap += this.stats.attackSpeed;
         if (this.canAttack()) {
             this.stats.ap -= 1000;
             this.TEST_attacksCounter++;
+
+            const attackTarget = this.bm.getAttackTargetFor(this);
+            if (!attackTarget) {
+                throw Error("Undefined attack target for " + this.toString());
+            }
+
+            this.attackWithMainHand(attackTarget);
+        }
+    }
+
+    attackWithMainHand(target: Unit) {
+        target.receiveDamage(this.stats.attackDamage);
+    }
+
+    receiveDamage(damage: number) {
+        const finalDamage = Math.round((damage * 100) / (this.stats.def + 100));
+
+        if (this.stats.armorHp > 0) {
+            this.stats.armorHp -= finalDamage;
+            if (this.stats.armorHp < 0) {
+                // If the armor is now depleted, apply any remaining damage to the unit's HP
+                this.stats.hp += this.stats.armorHp;
+                this.stats.armorHp = 0;
+            }
+        } else {
+            this.stats.hp -= Math.round(finalDamage);
         }
     }
 

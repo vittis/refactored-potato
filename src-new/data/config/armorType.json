@@ -3,21 +3,24 @@
         "min": 0,
         "max": 5,
         "bonuses": {
-            "quickness": 20
+            "attackSpeed": 20,
+            "skillRegen": 20
         }
     },
     "medium": {
         "min": 5,
         "max": 12,
         "bonuses": {
-            "quickness": 0
+            "attackSpeed": 0,
+            "skillRegen": 0
         }
     },
     "heavy": {
         "min": 12,
         "max": 1000,
         "bonuses": {
-            "quickness": -20
+            "attackSpeed": -20,
+            "skillRegen": -20
         }
     }
 }
